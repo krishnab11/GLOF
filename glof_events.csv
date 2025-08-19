@@ -1,0 +1,24 @@
+lake_name,latitude,longitude,elevation_m,region,outburst_count,glof_period,lake_type,weather_conditions,glof_occurred
+"Merzbacher/Southern Inylshek",42.2,79.85,3271,"Central Tien Shan",86,"1902–2015","ice_dammed","",1
+"Khurdopin/Khurdopin",36.34,75.47,3482,"Karakoram",37,"1882–2021","ice_dammed","",1
+"Kyagar/Kyagar",35.68,77.19,4880,"Karakoram",34,"1880–2019","ice_dammed","",1
+"Unnamed/Aksay",42.53,74.54,3637,"Northern/Western Tien Shan",30,"1877–2015","moraine_dammed","",1
+"Unnamed/Kuturgansuu",42.52,74.61,3470,"Northern/Western Tien Shan",17,"1846–2010","moraine_dammed","",1
+"Unnamed/Chong Kumden",35.17,77.7,4691,"Karakoram",14,"1533–1934","ice_dammed","",1
+"Hassanabad/Shisper",36.39,74.51,3370,"Karakoram",13,"1894–2022","ice_dammed","",1
+"Karambar/Karambar",36.62,74.08,2935,"Karakoram",11,"1844–1994","ice_dammed","",1
+"Unknown/Teztor",42.54,74.43,3606,"Northern/Western Tien Shan",11,"1910–2012","moraine_dammed","",1
+"Ghulkin/Ghulkin",36.42,74.88,2692,"Karakoram",8,"1980–2009","supraglacial","",1
+"Lake no. 6/Bezymyannyi",43.14,77.28,3380,"Northern/Western Tien Shan",8,"1973–2014","supraglacial","",1
+"Unnamed/Halji",30.27,81.48,5347,"Central Himalaya",6,"2004–2011","supraglacial","",1
+"Unnamed/Salyk",42.52,74.72,3390,"Northern/Western Tien Shan",6,"1938–1980","moraine_dammed","",1
+"Unnamed/Topkaragay",42.49,74.52,3680,"Northern/Western Tien Shan",6,"1928–1993","moraine_dammed","",1
+"Unnamed/Central Rimo",35.42,77.61,5100,"Karakoram",5,"1976–2014","ice_dammed","",1
+"Unnamed/Batura",36.51,74.85,2713,"Karakoram",5,"1873–1974","supraglacial","",1
+"Unnamed/North Terong",35.25,77.31,4400,"Karakoram",5,"1975–2002","ice_dammed","",1
+"Chorabari Lake",30.7345,79.0669,3900,"Uttarakhand",1,"2013","moraine_dammed","Heavy monsoon rainfall and avalanche",0
+"South Lhonak Lake",27.8489,88.6793,5100,"Sikkim",2,"2013–2023","moraine_dammed","Heavy rainfall, glacier melt, and permafrost thaw",0
+"Unnamed Glacier",30.4122,79.6941,3800,"Uttarakhand",1,"2021","ice_dammed","Sudden temperature rise and glacier collapse",0
+"Gya Lake",34.2431,77.0277,4600,"Ladakh",1,"2014","moraine_dammed","Heavy rainfall",0
+"Kyagar Lake",35.68,77.19,4880,"Ladakh",34,"1880–2019","ice_dammed","Likely heavy rainfall/glacier melt",1
+"Khurdopin Glacier",36.34,75.47,3482,"Karakoram",37,"1882–2021","ice_dammed","Likely heavy rainfall/glacier melt",1

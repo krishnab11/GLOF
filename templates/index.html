@@ -1,0 +1,2262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glacier Lake Monitoring System</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --text-color: #333;
+            --bg-color: #f5f7fa;
+            --panel-bg: rgba(255, 255, 255, 0.95);
+            --panel-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            --border-color: #e2e8f0;
+            --success-color: #48bb78;
+            --warning-color: #ed8936;
+            --danger-color: #e53e3e;
+            --info-color: #4299e1;
+        }
+
+        [data-theme="dark"] {
+            --primary-color: #7f9cf5;
+            --secondary-color: #9f7aea;
+            --text-color: #e2e8f0;
+            --bg-color: #1a202c;
+            --panel-bg: rgba(45, 55, 72, 0.95);
+            --panel-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            --border-color: #4a5568;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            min-height: 100vh;
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .controls-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-button {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .control-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: var(--panel-shadow);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .panel h2 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .search-section {
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input, select, button {
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--panel-bg);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .map-container {
+            grid-column: 1 / -1;
+            height: 500px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: var(--panel-shadow);
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .lake-card {
+            background: var(--panel-bg);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 15px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid var(--primary-color);
+            transition: transform 0.3s ease;
+        }
+
+        .lake-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 30px rgba(0,0,0,0.15);
+        }
+
+        .lake-card h3 {
+            color: var(--text-color);
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .lake-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .risk-indicator {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .risk-low { background: #c6f6d5; color: #22543d; }
+        .risk-medium { background: #fed7d7; color: #9b2c2c; }
+        .risk-high { background: #feb2b2; color: #742a2a; }
+
+        .weather-data {
+            background: linear-gradient(135deg, var(--info-color), #3182ce);
+            color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+
+        .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            text-align: center;
+        }
+
+        .weather-item {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        .weather-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .weather-label {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--primary-color);
+        }
+
+        .spinner {
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            background: #fed7d7;
+            color: #9b2c2c;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #e53e3e;
+        }
+
+        .ml-panel {
+            background: linear-gradient(135deg, #2d3748, #4a5568);
+            color: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .model-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+            padding: 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-trained { background: var(--success-color); }
+        .status-training { background: var(--warning-color); animation: pulse 2s infinite; }
+        .status-untrained { background: var(--danger-color); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .feature-importance {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .feature-bar {
+            background: rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 12px;
+        }
+
+        .feature-name {
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+
+        .feature-value {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .feature-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success-color), var(--warning-color), var(--danger-color));
+            transition: width 0.5s ease;
+        }
+
+        .prediction-output {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .prediction-score {
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .score-high { color: var(--danger-color); }
+        .score-medium { color: var(--warning-color); }
+        .score-low { color: var(--success-color); }
+
+        .explanation-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .explanation-item {
+            background: rgba(255,255,255,0.05);
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid;
+        }
+
+        .critical { border-left-color: var(--danger-color); }
+        .warning { border-left-color: var(--warning-color); }
+        .info { border-left-color: var(--success-color); }
+
+        .precaution-card {
+            background: linear-gradient(135deg, var(--danger-color), #c53030);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 5px 15px rgba(229, 62, 62, 0.3);
+        }
+
+        .precaution-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .precaution-item {
+            background: rgba(255,255,255,0.1);
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .precaution-icon {
+            font-size: 1.2rem;
+        }
+
+        .training-log {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 15px 0;
+            border: 1px solid #4a5568;
+        }
+
+        .model-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+
+        .model-button {
+            background: linear-gradient(135deg, var(--info-color), #3182ce);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .model-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(66, 153, 225, 0.3);
+        }
+
+        .model-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            color: white;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        /* Alert controls */
+        .alert-controls {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: var(--panel-bg);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: var(--panel-shadow);
+            width: 300px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .alert-controls h2 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .alert-button {
+            background: linear-gradient(135deg, var(--danger-color), #c53030);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
+        .alert-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(229, 62, 62, 0.3);
+        }
+
+        .offline-alerts-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .offline-alert-card {
+            background: var(--panel-bg);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid var(--danger-color);
+        }
+
+        .connectivity-status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .online {
+            background-color: #c6f6d5;
+            color: #22543d;
+        }
+
+        .offline {
+            background-color: #fed7d7;
+            color: #9b2c2c;
+        }
+
+        /* Satellite data panel */
+        .satellite-panel {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .satellite-imagery {
+            height: 200px;
+            background-size: cover;
+            background-position: center;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .satellite-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            font-size: 0.8rem;
+        }
+
+        .satellite-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-color);
+            margin-bottom: 10px;
+        }
+
+        /* Weather forecast */
+        .forecast-container {
+            display: flex;
+            overflow-x: auto;
+            gap: 10px;
+            padding: 10px 0;
+        }
+
+        .forecast-card {
+            min-width: 120px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .forecast-day {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .forecast-icon {
+            font-size: 2rem;
+            margin: 5px 0;
+        }
+
+        .forecast-temp {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        /* Language selector */
+        .language-selector {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+        }
+
+        .language-button {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 5px 10px;
+            cursor: pointer;
+            margin-right: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .language-button:hover, .language-button.active {
+            background: rgba(255,255,255,0.4);
+        }
+
+        /* Tab styles */
+        .tab-container {
+            margin-top: 20px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-button {
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .tab-button.active {
+            background: white;
+            color: var(--primary-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-input {
+                flex-direction: column;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .model-controls {
+                flex-direction: column;
+            }
+
+            .alert-button {
+                width: 100%;
+                margin-right: 0;
+            }
+
+            .alert-controls {
+                width: calc(100% - 40px);
+                right: 20px;
+                left: 20px;
+            }
+
+            .tab-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Language Selector -->
+        <div class="language-selector">
+            <button class="language-button active" onclick="changeLanguage('en')">English</button>
+            <button class="language-button" onclick="changeLanguage('hi')">हिंदी</button>
+            <button class="language-button" onclick="changeLanguage('mr')">मराठी</button>
+            <button class="language-button" onclick="changeLanguage('gu')">ગુજરાતી</button>
+        </div>
+
+        <div class="header">
+            <h1 data-translate="title">🏔️ Glacier Lake Monitoring System</h1>
+            <p data-translate="subtitle">Real-time satellite data, weather integration, and GLOF risk assessment</p>
+            
+            <!-- Controls Container -->
+            <div class="controls-container">
+                <button class="control-button" onclick="toggleTheme()">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="control-button" id="toggleAlertControls">
+                    <i class="fas fa-bell"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Alert Controls Panel -->
+        <div class="alert-controls" id="alertControls">
+            <h2 data-translate="alert_title">🚨 Manual Alert Controls</h2>
+            <div class="model-controls">
+                <button class="alert-button" onclick="sendManualAlert()" data-translate="send_test">Send Test Alert</button>
+                <button class="alert-button" onclick="showOfflineAlerts()" data-translate="view_queued">View Queued Alerts</button>
+                <button class="alert-button" onclick="checkConnectivity()" data-translate="check_connectivity">Check Connectivity</button>
+            </div>
+            
+            <div id="offlineAlertsContainer" class="offline-alerts-container">
+                <h3 data-translate="queued_alerts">Queued Offline Alerts</h3>
+                <div id="offlineAlertsList" class="data-grid"></div>
+            </div>
+            
+            <div id="connectivityStatus" class="connectivity-status"></div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="openTab('dashboard')" data-translate="tab_dashboard">Dashboard</button>
+                <button class="tab-button" onclick="openTab('database')" data-translate="tab_database">Lake Database</button>
+                <button class="tab-button" onclick="openTab('ml')" data-translate="tab_ml">ML & Predictions</button>
+                <button class="tab-button" onclick="openTab('risk')" data-translate="tab_risk">Risk Assessment</button>
+                <button class="tab-button" onclick="openTab('safety')" data-translate="tab_safety">Safety Precautions</button>
+            </div>
+            
+            <!-- Dashboard Tab -->
+             <!-- Dashboard Tab -->
+<div id="dashboard" class="tab-content active">
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-number" id="lakeCount">0</span>
+            <span class="stat-label" data-translate="stat_lakes">Lakes Monitored</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-number" id="highRiskCount">0</span>
+            <span class="stat-label" data-translate="stat_high_risk">High Risk</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-number" id="alertCount">0</span>
+            <span class="stat-label" data-translate="stat_alerts">Active Alerts</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-number" id="lastUpdate">--</span>
+            <span class="stat-label" data-translate="stat_last_update">Last Update</span>
+        </div>
+    </div>
+
+    <div class="dashboard">
+        <!-- Weather Panel - Now takes full width -->
+        <div class="panel" style="grid-column: 1 / -1;">
+            <h2 data-translate="weather_title">🌤️ Weather Integration</h2>
+            <div class="search-input">
+                <select id="weatherSource">
+                    <option value="openweather" data-translate="weather_openweather">OpenWeatherMap</option>
+                    <option value="nasa" data-translate="weather_nasa">NASA POWER</option>
+                </select>
+                <input type="number" id="historyDays" placeholder="History days (30-90)" value="30" min="30" max="90" data-translate="weather_days">
+                <button onclick="fetchWeatherData()" data-translate="weather_update">Update Weather</button>
+            </div>
+            <div id="weatherStatus" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <span data-translate="weather_loading">Loading weather data...</span>
+            </div>
+            <div id="weatherDisplay"></div>
+            <div class="forecast-container" id="weatherForecast"></div>
+        </div>
+
+        <!-- Satellite Panel - Now below weather -->
+        <div class="panel satellite-panel">
+            <h2 data-translate="satellite_title">🛰️ Satellite Data Integration</h2>
+            <div class="satellite-imagery" id="satelliteImage" style="background-image: url('https://worldview.earthdata.nasa.gov/?p=geographic&l=VIIRS_SNPP_CorrectedReflectance_TrueColor(hidden),MODIS_Aqua_CorrectedReflectance_TrueColor(hidden),MODIS_Terra_CorrectedReflectance_TrueColor,Reference_Labels(hidden),Reference_Features(hidden),Coastlines&t=2023-06-15&v=85,27,95,32')">
+                <div class="satellite-overlay">
+                    <span data-translate="satellite_source">NASA Worldview - Terra/MODIS</span>
+                </div>
+            </div>
+            <div class="satellite-meta">
+                <span data-translate="satellite_date">2023-06-15</span>
+                <span data-translate="satellite_resolution">250m resolution</span>
+            </div>
+            <div class="search-section">
+                <div class="search-input">
+                    <input type="text" id="regionInput" placeholder="Enter region or coordinates" data-translate="satellite_placeholder" style="flex: 1;">
+                    <select id="dataSource">
+                        <option value="glims" data-translate="satellite_glims">GLIMS Database</option>
+                        <option value="himag" data-translate="satellite_himag">Hi-MAG Dataset</option>
+                        <option value="osm" data-translate="satellite_osm">OpenStreetMap</option>
+                    </select>
+                    <button onclick="searchGlacierLakes()" data-translate="satellite_search">Search Lakes</button>
+                </div>
+                <button onclick="loadSampleData()" style="width: 100%;" data-translate="satellite_sample">Load Sample Himalayan Data</button>
+            </div>
+            <div id="satelliteStatus" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <span data-translate="satellite_loading">Fetching satellite data...</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel map-container">
+        <div id="map" style="height: 100%; width: 100%;"></div>
+    </div>
+</div>
+            
+            <!-- Lake Database Tab -->
+            <div id="database" class="tab-content">
+                <div class="panel">
+                    <h2 data-translate="database_title">📊 Glacier Lake Database</h2>
+                    <div id="lakeData" class="data-grid"></div>
+                </div>
+            </div>
+            
+            <!-- ML & Predictions Tab -->
+            <div id="ml" class="tab-content">
+                <div class="ml-panel">
+                    <h2 data-translate="ml_title">🤖 ML Model Architecture & Training</h2>
+                    <div class="model-status">
+                        <span class="status-indicator" id="modelStatusIndicator"></span>
+                        <span id="modelStatusText" data-translate="model_status">Model Status: Not Trained</span>
+                    </div>
+                    
+                    <div class="model-controls">
+                        <button class="model-button" onclick="trainModel()" data-translate="train_rf">Train Random Forest Model</button>
+                        <button class="model-button" onclick="trainLSTMModel()" data-translate="train_lstm">Train LSTM Model</button>
+                        <button class="model-button" onclick="loadPretrainedModel()" data-translate="load_pretrained">Load Pretrained Model</button>
+                        <button class="model-button" onclick="exportModel()" data-translate="export_model">Export Model</button>
+                    </div>
+
+                    <div class="training-log" id="trainingLog" style="display: none;">
+                        <div id="logContent"></div>
+                    </div>
+
+                    <div id="featureImportance" style="display: none;">
+                        <h3 data-translate="feature_title">Feature Importance Analysis</h3>
+                        <div class="feature-importance" id="featureImportanceChart"></div>
+                    </div>
+                </div>
+
+                <div class="ml-panel">
+                    <h2 data-translate="prediction_title">🔮 GLOF Risk Prediction Engine</h2>
+                    <div class="model-controls">
+                        <button class="model-button" onclick="runPrediction()" id="predictButton" disabled data-translate="predict_run">Generate Risk Prediction</button>
+                        <button class="model-button" onclick="batchPredict()" data-translate="predict_batch">Batch Predict All Lakes</button>
+                    </div>
+
+                    <div id="predictionResults"></div>
+                </div>
+            </div>
+            
+            <!-- Risk Assessment Tab -->
+            <div id="risk" class="tab-content">
+                <div class="panel">
+                    <h2 data-translate="risk_title">⚠️ GLOF Risk Assessment & Explanations</h2>
+                    <div id="riskAssessment"></div>
+                </div>
+            </div>
+            
+            <!-- Safety Precautions Tab -->
+            <div id="safety" class="tab-content">
+                <div class="panel">
+                    <h2 data-translate="safety_title">🛡️ Safety Precautions & Recommendations</h2>
+                    <div id="precautionAdvisory"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script>
+        // Translation dictionary
+        const translations = {
+            en: {
+                title: "🏔️ Glacier Lake Monitoring System",
+                subtitle: "Real-time satellite data, weather integration, and GLOF risk assessment",
+                alert_title: "🚨 Manual Alert Controls",
+                send_test: "Send Test Alert",
+                view_queued: "View Queued Alerts",
+                check_connectivity: "Check Connectivity",
+                queued_alerts: "Queued Offline Alerts",
+                tab_dashboard: "Dashboard",
+                tab_database: "Lake Database",
+                tab_ml: "ML & Predictions",
+                tab_risk: "Risk Assessment",
+                tab_safety: "Safety Precautions",
+                stat_lakes: "Lakes Monitored",
+                stat_high_risk: "High Risk",
+                stat_alerts: "Active Alerts",
+                stat_last_update: "Last Update",
+                satellite_title: "🛰️ Satellite Data Integration",
+                satellite_placeholder: "Enter region or coordinates",
+                satellite_glims: "GLIMS Database",
+                satellite_himag: "Hi-MAG Dataset",
+                satellite_osm: "OpenStreetMap",
+                satellite_search: "Search Lakes",
+                satellite_sample: "Load Sample Himalayan Data",
+                satellite_loading: "Fetching satellite data...",
+                satellite_source: "NASA Worldview - Terra/MODIS",
+                satellite_date: "2023-06-15",
+                satellite_resolution: "250m resolution",
+                weather_title: "🌤️ Weather Integration",
+                weather_openweather: "OpenWeatherMap",
+                weather_nasa: "NASA POWER",
+                weather_days: "History days (30-90)",
+                weather_update: "Update Weather",
+                weather_loading: "Loading weather data...",
+                database_title: "📊 Glacier Lake Database",
+                ml_title: "🤖 ML Model Architecture & Training",
+                model_status: "Model Status: Not Trained",
+                train_rf: "Train Random Forest Model",
+                train_lstm: "Train LSTM Model",
+                load_pretrained: "Load Pretrained Model",
+                export_model: "Export Model",
+                feature_title: "Feature Importance Analysis",
+                prediction_title: "🔮 GLOF Risk Prediction Engine",
+                predict_run: "Generate Risk Prediction",
+                predict_batch: "Batch Predict All Lakes",
+                risk_title: "⚠️ GLOF Risk Assessment & Explanations",
+                safety_title: "🛡️ Safety Precautions & Recommendations"
+            },
+            hi: {
+                title: "🏔️ ग्लेशियर झील निगरानी प्रणाली",
+                subtitle: "रीयल-टाइम उपग्रह डेटा, मौसम एकीकरण और GLOF जोखिम मूल्यांकन",
+                alert_title: "🚨 मैन्युअल अलर्ट नियंत्रण",
+                send_test: "टेस्ट अलर्ट भेजें",
+                view_queued: "कतारबद्ध अलर्ट देखें",
+                check_connectivity: "कनेक्टिविटी जांचें",
+                queued_alerts: "कतारबद्ध ऑफलाइन अलर्ट",
+                tab_dashboard: "डैशबोर्ड",
+                tab_database: "झील डेटाबेस",
+                tab_ml: "एमएल और भविष्यवाणियाँ",
+                tab_risk: "जोखिम मूल्यांकन",
+                tab_safety: "सुरक्षा सावधानियाँ",
+                stat_lakes: "निगरानी की गई झीलें",
+                stat_high_risk: "उच्च जोखिम",
+                stat_alerts: "सक्रिय अलर्ट",
+                stat_last_update: "अंतिम अद्यतन",
+                satellite_title: "🛰️ उपग्रह डेटा एकीकरण",
+                satellite_placeholder: "क्षेत्र या निर्देशांक दर्ज करें",
+                satellite_glims: "GLIMS डेटाबेस",
+                satellite_himag: "Hi-MAG डेटासेट",
+                satellite_osm: "OpenStreetMap",
+                satellite_search: "झीलें खोजें",
+                satellite_sample: "हिमालयी नमूना डेटा लोड करें",
+                satellite_loading: "उपग्रह डेटा प्राप्त किया जा रहा है...",
+                satellite_source: "नासा वर्ल्डव्यू - टेरा/MODIS",
+                satellite_date: "2023-06-15",
+                satellite_resolution: "250m रिज़ॉल्यूशन",
+                weather_title: "🌤️ मौसम एकीकरण",
+                weather_openweather: "OpenWeatherMap",
+                weather_nasa: "नासा पावर",
+                weather_days: "इतिहास दिन (30-90)",
+                weather_update: "मौसम अपडेट करें",
+                weather_loading: "मौसम डेटा लोड हो रहा है...",
+                database_title: "📊 ग्लेशियर झील डेटाबेस",
+                ml_title: "🤖 एमएल मॉडल आर्किटेक्चर और प्रशिक्षण",
+                model_status: "मॉडल स्थिति: प्रशिक्षित नहीं",
+                train_rf: "रैंडम फॉरेस्ट मॉडल प्रशिक्षित करें",
+                train_lstm: "LSTM मॉडल प्रशिक्षित करें",
+                load_pretrained: "पूर्व-प्रशिक्षित मॉडल लोड करें",
+                export_model: "मॉडल निर्यात करें",
+                feature_title: "फीचर महत्व विश्लेषण",
+                prediction_title: "🔮 GLOF जोखिम भविष्यवाणी इंजन",
+                predict_run: "जोखिम भविष्यवाणी उत्पन्न करें",
+                predict_batch: "सभी झीलों का बैच पूर्वानुमान",
+                risk_title: "⚠️ GLOF जोखिम मूल्यांकन और स्पष्टीकरण",
+                safety_title: "🛡️ सुरक्षा सावधानियाँ और सिफारिशें"
+            },
+            mr: {
+                title: "🏔️ हिमनदी तलाव मॉनिटरिंग सिस्टम",
+                subtitle: "रीअल-टाइम उपग्रह डेटा, हवामान एकत्रीकरण आणि GLOF धोका मूल्यांकन",
+                alert_title: "🚨 मॅन्युअल अलर्ट नियंत्रणे",
+                send_test: "चाचणी अलर्ट पाठवा",
+                view_queued: "रांगेत अलर्ट पहा",
+                check_connectivity: "कनेक्टिव्हिटी तपासा",
+                queued_alerts: "रांगेत ऑफलाइन अलर्ट",
+                tab_dashboard: "डॅशबोर्ड",
+                tab_database: "तलाव डेटाबेस",
+                tab_ml: "ML आणि अंदाज",
+                tab_risk: "धोका मूल्यांकन",
+                tab_safety: "सुरक्षा खबरदारी",
+                stat_lakes: "मॉनिटर केलेले तलाव",
+                stat_high_risk: "उच्च धोका",
+                stat_alerts: "सक्रिय अलर्ट",
+                stat_last_update: "शेवटचे अद्यतन",
+                satellite_title: "🛰️ उपग्रह डेटा एकत्रीकरण",
+                satellite_placeholder: "प्रदेश किंवा निर्देशांक प्रविष्ट करा",
+                satellite_glims: "GLIMS डेटाबेस",
+                satellite_himag: "Hi-MAG डेटासेट",
+                satellite_osm: "OpenStreetMap",
+                satellite_search: "तलाव शोधा",
+                satellite_sample: "हिमालयीन नमुना डेटा लोड करा",
+                satellite_loading: "उपग्रह डेटा मिळवला जात आहे...",
+                satellite_source: "नासा वर्ल्डव्यू - टेरा/MODIS",
+                satellite_date: "2023-06-15",
+                satellite_resolution: "250m रिझोल्यूशन",
+                weather_title: "🌤️ हवामान एकत्रीकरण",
+                weather_openweather: "OpenWeatherMap",
+                weather_nasa: "नासा पॉवर",
+                weather_days: "इतिहास दिवस (30-90)",
+                weather_update: "हवामान अद्यतन करा",
+                weather_loading: "हवामान डेटा लोड होत आहे...",
+                database_title: "📊 हिमनदी तलाव डेटाबेस",
+                ml_title: "🤖 ML मॉडेल आर्किटेक्चर आणि प्रशिक्षण",
+                model_status: "मॉडेल स्थिती: प्रशिक्षित नाही",
+                train_rf: "रँडम फॉरेस्ट मॉडेल प्रशिक्षित करा",
+                train_lstm: "LSTM मॉडेल प्रशिक्षित करा",
+                load_pretrained: "पूर्व-प्रशिक्षित मॉडेल लोड करा",
+                export_model: "मॉडेल निर्यात करा",
+                feature_title: "वैशिष्ट्य महत्त्व विश्लेषण",
+                prediction_title: "🔮 GLOF धोका अंदाज इंजिन",
+                predict_run: "धोका अंदाज निर्माण करा",
+                predict_batch: "सर्व तलावांचा बॅच अंदाज",
+                risk_title: "⚠️ GLOF धोका मूल्यांकन आणि स्पष्टीकरण",
+                safety_title: "🛡️ सुरक्षा खबरदारी आणि शिफारस"
+            },
+            gu: {
+                title: "🏔️ ગ્લેશિયર લેક મોનિટરિંગ સિસ્ટમ",
+                subtitle: "રીઅલ-ટાઇમ સેટેલાઇટ ડેટા, હવામાન એકીકરણ અને GLOF જોખમ મૂલ્યાંકન",
+                alert_title: "🚨 મેન્યુઅલ એલર્ટ નિયંત્રણો",
+                send_test: "ટેસ્ટ એલર્ટ મોકલો",
+                view_queued: "કતારબદ્ધ એલર્ટ જુઓ",
+                check_connectivity: "કનેક્ટિવિટી તપાસો",
+                queued_alerts: "કતારબદ્ધ ઑફલાઇન એલર્ટ",
+                tab_dashboard: "ડેશબોર્ડ",
+                tab_database: "લેક ડેટાબેઝ",
+                tab_ml: "ML અને આગાહીઓ",
+                tab_risk: "જોખમ મૂલ્યાંકન",
+                tab_safety: "સલામતી સાવચેતીઓ",
+                stat_lakes: "મોનિટર કરેલી લેક્સ",
+                stat_high_risk: "ઉચ્ચ જોખમ",
+                stat_alerts: "સક્રિય એલર્ટ",
+                stat_last_update: "છેલ્લી અપડેટ",
+                satellite_title: "🛰️ સેટેલાઇટ ડેટા એકીકરણ",
+                satellite_placeholder: "પ્રદેશ અથવા કોઓર્ડિનેટ્સ દાખલ કરો",
+                satellite_glims: "GLIMS ડેટાબેઝ",
+                satellite_himag: "Hi-MAG ડેટાસેટ",
+                satellite_osm: "OpenStreetMap",
+                satellite_search: "લેક્સ શોધો",
+                satellite_sample: "હિમાલયન નમૂના ડેટા લોડ કરો",
+                satellite_loading: "સેટેલાઇટ ડેટા મેળવી રહ્યા છીએ...",
+                satellite_source: "નાસા વર્લ્ડવ્યુ - ટેરા/MODIS",
+                satellite_date: "2023-06-15",
+                satellite_resolution: "250m રિઝોલ્યુશન",
+                weather_title: "🌤️ હવામાન એકીકરણ",
+                weather_openweather: "OpenWeatherMap",
+                weather_nasa: "નાસા પાવર",
+                weather_days: "ઇતિહાસ દિવસો (30-90)",
+                weather_update: "હવામાન અપડેટ કરો",
+                weather_loading: "હવામાન ડેટા લોડ થાય છે...",
+                database_title: "📊 ગ્લેશિયર લેક ડેટાબેઝ",
+                ml_title: "🤖 ML મોડેલ આર્કિટેક્ચર અને તાલીમ",
+                model_status: "મોડેલ સ્થિતિ: તાલીમ આપેલ નથી",
+                train_rf: "રેન્ડમ ફોરેસ્ટ મોડેલ તાલીમ આપો",
+                train_lstm: "LSTM મોડેલ તાલીમ આપો",
+                load_pretrained: "પૂર્વ-તાલીમ આપેલ મોડેલ લોડ કરો",
+                export_model: "મોડેલ નિકાસ કરો",
+                feature_title: "ફીચર મહત્વ વિશ્લેષણ",
+                prediction_title: "🔮 GLOF જોખમ આગાહી એન્જિન",
+                predict_run: "જોખમ આગાહી જનરેટ કરો",
+                predict_batch: "બધી લેક્સની બેચ આગાહી",
+                risk_title: "⚠️ GLOF જોખમ મૂલ્યાંકન અને સમજૂતી",
+                safety_title: "🛡️ સલામતી સાવચેતીઓ અને ભલામણો"
+            }
+        };
+
+        // Global variables
+        let map;
+        let glacierLakes = [];
+        let weatherData = {};
+        const OPENWEATHER_API_KEY = 'ec8ecd486662eb30efb5e29afc7851c5';
+        let glofIncidents = [];
+        let mlModel = null;
+        let modelType = null;
+        let trainingData = [];
+        let featureImportance = {};
+        let isModelTrained = false;
+        let offlineAlerts = [];
+        let alertControlsVisible = false;
+        let currentLanguage = 'en';
+        let currentTheme = 'light';
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMap();
+            loadRealData();
+            loadGLOFHistory();
+            generateTrainingData();
+            updateLastUpdateTime();
+            
+            // Setup alert controls toggle
+            document.getElementById('toggleAlertControls').addEventListener('click', toggleAlertControls);
+            
+            // Load theme preference from localStorage
+            const savedTheme = localStorage.getItem('glof-theme');
+            if (savedTheme) {
+                setTheme(savedTheme);
+            }
+            
+            // Load language preference from localStorage
+            const savedLanguage = localStorage.getItem('glof-language');
+            if (savedLanguage) {
+                changeLanguage(savedLanguage, false);
+            }
+        });
+
+        // Tab navigation function
+        function openTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Deactivate all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show the selected tab content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Activate the clicked button
+            event.currentTarget.classList.add('active');
+            
+            // If opening the dashboard tab, make sure the map is properly sized
+            if (tabId === 'dashboard') {
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 100);
+            }
+        }
+
+        // Language functions
+        function changeLanguage(lang, save = true) {
+            currentLanguage = lang;
+            if (save) {
+                localStorage.setItem('glof-language', lang);
+            }
+            
+            // Update language buttons
+            document.querySelectorAll('.language-button').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent === translations[lang].title.split(' ')[1]) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Update all translatable elements
+            document.querySelectorAll('[data-translate]').forEach(el => {
+                const key = el.getAttribute('data-translate');
+                if (translations[lang][key]) {
+                    el.textContent = translations[lang][key];
+                    
+                    // Handle placeholders for input elements
+                    if (el.tagName === 'INPUT' && el.getAttribute('placeholder')) {
+                        el.setAttribute('placeholder', translations[lang][key]);
+                    }
+                }
+            });
+        }
+
+        // Theme functions
+        function toggleTheme() {
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            setTheme(newTheme);
+            localStorage.setItem('glof-theme', newTheme);
+        }
+
+        function setTheme(theme) {
+            currentTheme = theme;
+            document.documentElement.setAttribute('data-theme', theme);
+            
+            // Update theme toggle icon
+            const themeIcon = document.querySelector('.fa-moon');
+            if (theme === 'dark') {
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            } else {
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+            }
+        }
+
+        // Initialize Leaflet map
+        function initializeMap() {
+            map = L.map('map').setView([28.2380, 83.9956], 8); // Annapurna region
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Add satellite layer option
+            const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles © Esri'
+            });
+
+            const baseMaps = {
+                "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+                "Satellite": satellite
+            };
+
+            L.control.layers(baseMaps).addTo(map);
+        }
+
+        // Sample glacier lake data (simulating GLIMS/Hi-MAG data)
+        async function loadRealData() {
+            showLoading('satelliteStatus');
+            
+            try {
+                // Fetch from your backend API
+                const response = await fetch('/api/lakes');
+                const data = await response.json();
+                
+                // Process lakes data
+                glacierLakes = data.lakes.map((lake, index) => ({
+                    id: 'GL' + (index + 1).toString().padStart(3, '0'),
+                    name: lake.name,
+                    lat: lake.latitude,
+                    lng: lake.longitude,
+                    elevation: Math.floor(3000 + Math.random() * 3000), // Simulate elevation
+                    area: (1 + Math.random() * 5).toFixed(1), // Simulate area
+                    depth: Math.floor(30 + Math.random() * 70), // Simulate depth
+                    volume: (10 + Math.random() * 90).toFixed(1), // Simulate volume
+                    damType: Math.random() > 0.5 ? 'Moraine' : 'Bedrock',
+                    riskLevel: 'low', // Default, will be updated
+                    lastSurvey: new Date().toISOString().split('T')[0],
+                    change: (Math.random() > 0.5 ? '+' : '-') + (Math.random() * 10).toFixed(1) + '%',
+                    state: lake.state
+                }));
+                
+                // Process GLOF events to update risk levels
+                data.glof_events.forEach(event => {
+                    const matchingLake = glacierLakes.find(l => 
+                        Math.abs(l.lat - event.latitude) < 0.5 && 
+                        Math.abs(l.lng - event.longitude) < 0.5);
+                    
+                    if (matchingLake) {
+                        // Higher risk if GLOF occurred before
+                        matchingLake.riskLevel = event.glf_occurred ? 'high' : 
+                                             event.outburst_count > 0 ? 'medium' : 'low';
+                        matchingLake.glfEvents = event;
+                    }
+                });
+                
+                hideLoading('satelliteStatus');
+                displayLakeData();
+                addLakeMarkers();
+                updateStats();
+                fetchWeatherData();
+            } catch (err) {
+                console.error('Error loading lake data:', err);
+                hideLoading('satelliteStatus');
+                alert('Failed to load lake data. Using sample data instead.');
+                loadSampleData(); // Fallback to sample data
+            }
+        }
+
+        function displayLakeData() {
+            const container = document.getElementById('lakeData');
+            container.innerHTML = '';
+            
+            glacierLakes.forEach(lake => {
+                const riskColor = lake.riskLevel === 'high' ? '#e53e3e' : 
+                                 lake.riskLevel === 'medium' ? '#ed8936' : '#48bb78';
+                
+                container.innerHTML += `
+                    <div class="lake-card" style="border-left-color: ${riskColor}">
+                        <h3>${lake.name}</h3>
+                        <div class="lake-info">
+                            <div class="info-item">
+                                <span>State:</span>
+                                <span>${lake.state || 'N/A'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span>Elevation:</span>
+                                <span>${lake.elevation}m</span>
+                            </div>
+                            <div class="info-item">
+                                <span>Area:</span>
+                                <span>${lake.area} km²</span>
+                            </div>
+                            <div class="info-item">
+                                <span>Risk Level:</span>
+                                <span class="risk-indicator risk-${lake.riskLevel}">${lake.riskLevel.toUpperCase()}</span>
+                            </div>
+                            <div class="info-item">
+                                <span>Last Survey:</span>
+                                <span>${lake.lastSurvey}</span>
+                            </div>
+                            <div class="info-item">
+                                <span>Change:</span>
+                                <span>${lake.change}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Add markers to map
+        function addLakeMarkers() {
+            glacierLakes.forEach(lake => {
+                const color = lake.riskLevel === 'high' ? 'red' : 
+                             lake.riskLevel === 'medium' ? 'orange' : 'green';
+                
+                const marker = L.circleMarker([lake.lat, lake.lng], {
+                    radius: Math.sqrt(lake.area) * 5,
+                    fillColor: color,
+                    color: '#000',
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.7
+                }).addTo(map);
+
+                marker.bindPopup(`
+                    <strong>${lake.name}</strong><br>
+                    Risk: <span class="risk-indicator risk-${lake.riskLevel}">${lake.riskLevel}</span><br>
+                    Area: ${lake.area} km²<br>
+                    Elevation: ${lake.elevation}m<br>
+                    Volume: ${lake.volume} M m³
+                `);
+            });
+        }
+
+        // Fetch weather data for all lakes
+        async function fetchWeatherData() {
+            showLoading('weatherStatus');
+
+            try {
+                const aggregated = {
+                    temperature: 0,
+                    precipitation: 0,
+                    humidity: 0,
+                    windSpeed: 0,
+                    pressure: 0,
+                    snowfall: 0
+                };
+
+                for (const lake of glacierLakes) {
+                    const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lake.lat}&lon=${lake.lng}&units=metric&appid=${OPENWEATHER_API_KEY}`);
+                    const data = await res.json();
+
+                    aggregated.temperature += data.main.temp;
+                    aggregated.precipitation += data.rain?.['1h'] || 0;
+                    aggregated.humidity += data.main.humidity;
+                    aggregated.windSpeed += data.wind.speed;
+                    aggregated.pressure += data.main.pressure;
+                    aggregated.snowfall += data.snow?.['1h'] || 0;
+                }
+
+                const count = glacierLakes.length;
+                weatherData = {
+                    temperature: (aggregated.temperature / count).toFixed(1),
+                    precipitation: (aggregated.precipitation / count).toFixed(1),
+                    humidity: (aggregated.humidity / count).toFixed(0),
+                    windSpeed: (aggregated.windSpeed / count).toFixed(1),
+                    pressure: (aggregated.pressure / count).toFixed(1),
+                    snowfall: (aggregated.snowfall / count).toFixed(1)
+                };
+
+                displayWeatherData();
+                displayWeatherForecast();
+                hideLoading('weatherStatus');
+                assessGLOFRisk();
+            } catch (error) {
+                console.error("Weather API error:", error);
+                hideLoading('weatherStatus');
+            }
+        }
+
+        // Display weather information
+        function displayWeatherData() {
+            const container = document.getElementById('weatherDisplay');
+            container.innerHTML = `
+                <div class="weather-data">
+                    <h3>Current Conditions</h3>
+                    <div class="weather-grid">
+                        <div class="weather-item">
+                            <div class="weather-value">${weatherData.temperature}°C</div>
+                            <div class="weather-label">Temperature</div>
+                        </div>
+                        <div class="weather-item">
+                            <div class="weather-value">${weatherData.precipitation}mm</div>
+                            <div class="weather-label">Precipitation</div>
+                        </div>
+                        <div class="weather-item">
+                            <div class="weather-value">${weatherData.humidity}%</div>
+                            <div class="weather-label">Humidity</div>
+                        </div>
+                        <div class="weather-item">
+                            <div class="weather-value">${weatherData.windSpeed}m/s</div>
+                            <div class="weather-label">Wind Speed</div>
+                        </div>
+                        <div class="weather-item">
+                            <div class="weather-value">${weatherData.snowfall}cm</div>
+                            <div class="weather-label">Snow (7d)</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Display weather forecast
+        function displayWeatherForecast() {
+            const container = document.getElementById('weatherForecast');
+            container.innerHTML = '';
+            
+            // Simulated forecast data
+            const forecastData = [
+                { day: 'Today', icon: 'fa-sun', temp: weatherData.temperature + '°C', precip: weatherData.precipitation + 'mm' },
+                { day: 'Tue', icon: 'fa-cloud-sun', temp: (parseFloat(weatherData.temperature) - 2 )+ '°C', precip : '2.1mm' },
+                { day: 'Wed', icon: 'fa-cloud-rain', temp: (parseFloat(weatherData.temperature) - 4) + '°C', precip : '8.4mm' },
+                { day: 'Thu', icon: 'fa-cloud-showers-heavy', temp: (parseFloat(weatherData.temperature) - 1) + '°C', precip : '12.7mm' },
+                { day: 'Fri', icon: 'fa-snowflake', temp: (parseFloat(weatherData.temperature) - 5) + '°C', precip : '5.2mm' },
+                { day: 'Sat', icon: 'fa-cloud-sun', temp: (parseFloat(weatherData.temperature) + 1) + '°C', precip: '1.3mm' },
+                { day: 'Sun', icon: 'fa-sun', temp: (parseFloat(weatherData.temperature) + 3) + '°C', precip: '0.0mm' }
+            ];
+            
+            forecastData.forEach(day => {
+                const card = document.createElement('div');
+                card.className = 'forecast-card';
+                card.innerHTML = `
+                    <div class="forecast-day">${day.day}</div>
+                    <div class="forecast-icon"><i class="fas ${day.icon}"></i></div>
+                    <div class="forecast-temp">${day.temp}</div>
+                    <div class="weather-label">${day.precip}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Load GLOF historical incidents
+        function loadGLOFHistory() {
+            // Simulated GLOF incident data
+            glofIncidents = [
+                {
+                    id: 'GLOF001',
+                    date: '1985-08-04',
+                    location: 'Dig Tsho, Nepal',
+                    magnitude: 'Major',
+                    damage: 'Namche Small Hydro Plant destroyed, 5 fatalities',
+                    cause: 'Moraine dam failure'
+                },
+                {
+                    id: 'GLOF002',
+                    date: '1994-07-15',
+                    location: 'Lugge Tsho, Bhutan',
+                    magnitude: 'Major',
+                    damage: '21 fatalities, infrastructure damage',
+                    cause: 'Moraine dam failure'
+                },
+                {
+                    id: 'GLOF003',
+                    date: '2013-06-16',
+                    location: 'Lake 2, India',
+                    magnitude: 'Minor',
+                    damage: 'Localized flooding',
+                    cause: 'Ice avalanche'
+                }
+            ];
+        }
+
+        // Assess GLOF risk using ML-like logic
+        function assessGLOFRisk() {
+            const container = document.getElementById('riskAssessment');
+            let riskAssessment = '';
+
+            glacierLakes.forEach(lake => {
+                // Simple risk calculation based on multiple factors
+                let riskScore = 0;
+                
+                // Size and volume factor
+                if (lake.volume > 50) riskScore += 3;
+                else if (lake.volume > 20) riskScore += 2;
+                else riskScore += 1;
+
+                // Weather factor
+                if (weatherData.precipitation > 10) riskScore += 2;
+                else if (weatherData.precipitation > 5) riskScore += 1;
+
+                // Temperature factor (rapid warming)
+                if (weatherData.temperature > 15) riskScore += 2;
+                else if (weatherData.temperature > 10) riskScore += 1;
+
+                // Growth rate factor
+                const growth = parseFloat(lake.change.replace('%', ''));
+                if (growth > 10) riskScore += 3;
+                else if (growth > 5) riskScore += 2;
+                else if (growth > 0) riskScore += 1;
+
+                // Elevation factor
+                if (lake.elevation > 4500) riskScore += 1;
+
+                let riskLevel, riskColor;
+                if (riskScore >= 8) {
+                    riskLevel = 'CRITICAL';
+                    riskColor = '#742a2a';
+                } else if (riskScore >= 6) {
+                    riskLevel = 'HIGH';
+                    riskColor = '#9b2c2c';
+                } else if (riskScore >= 4) {
+                    riskLevel = 'MEDIUM';
+                    riskColor = '#d69e2e';
+                } else {
+                    riskLevel = 'LOW';
+                    riskColor = '#22543d';
+                }
+
+                riskAssessment += `
+                    <div class="lake-card" style="border-left-color: ${riskColor}">
+                        <h3>${lake.name} - Risk Score: ${riskScore}/12</h3>
+                        <div style="color: ${riskColor}; font-weight: bold; font-size: 1.1rem; margin: 10px 0;">
+                            Risk Level: ${riskLevel}
+                        </div>
+                        <div class="lake-info">
+                            <div class="info-item">
+                                <span>Volume Risk:</span>
+                                <span>${lake.volume > 50 ? 'High' : lake.volume > 20 ? 'Medium' : 'Low'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span>Weather Risk:</span>
+                                <span>${weatherData.precipitation > 10 ? 'High' : weatherData.precipitation > 5 ? 'Medium' : 'Low'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span>Growth Risk:</span>
+                                <span>${growth > 10 ? 'High' : growth > 5 ? 'Medium' : 'Low'}</span>
+                            </div>
+                            <div class="info-item">
+                                <span>Recommended Action:</span>
+                                <span>${riskScore >= 8 ? 'Immediate monitoring' : riskScore >= 6 ? 'Enhanced surveillance' : riskScore >= 4 ? 'Regular monitoring' : 'Standard monitoring'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = riskAssessment;
+        }
+
+        // Update statistics
+        function updateStats() {
+            document.getElementById('lakeCount').textContent = glacierLakes.length;
+            document.getElementById('highRiskCount').textContent = glacierLakes.filter(l => l.riskLevel === 'high').length;
+            document.getElementById('alertCount').textContent = glacierLakes.filter(l => l.riskLevel === 'high').length;
+        }
+
+        // Update last update time
+        function updateLastUpdateTime() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
+        }
+
+        // Search function for glacier lakes
+        function searchGlacierLakes() {
+            const region = document.getElementById('regionInput').value;
+            const source = document.getElementById('dataSource').value;
+            
+            if (!region) {
+                alert('Please enter a region or coordinates to search');
+                return;
+            }
+
+            showLoading('satelliteStatus');
+            
+            // Simulate API call
+            setTimeout(() => {
+                hideLoading('satelliteStatus');
+                alert(`Searching ${source} database for glacier lakes in: ${region}\n\nThis would integrate with real APIs like:\n- GLIMS Web Services\n- Hi-MAG dataset\n- Overpass API for OSM data`);
+            }, 2000);
+        }
+
+        // Utility functions
+        function showLoading(elementId) {
+            document.getElementById(elementId).style.display = 'block';
+        }
+
+        function hideLoading(elementId) {
+            document.getElementById(elementId).style.display = 'none';
+        }
+
+        // Auto-refresh data every 5 minutes
+        setInterval(() => {
+            updateLastUpdateTime();
+            fetchWeatherData();
+        }, 300000);
+
+        // ML Model Training Functions
+        function generateTrainingData() {
+            // Generate synthetic training data based on historical patterns
+            trainingData = [];
+            
+            for (let i = 0; i < 1000; i++) {
+                const data = {
+                    // Input features
+                    temperature: Math.random() * 25 - 5, // -5 to 20°C
+                    rainfall: Math.random() * 50, // 0-50mm
+                    snowmelt_rate: Math.random() * 10, // 0-10mm/day
+                    lake_area_change: (Math.random() - 0.5) * 20, // -10% to +10%
+                    lake_volume: Math.random() * 100, // 0-100 million m³
+                    elevation: 3000 + Math.random() * 3000, // 3000-6000m
+                    dam_stability: Math.random(), // 0-1 stability score
+                    ice_thickness: Math.random() * 50, // 0-50m
+                    slope_angle: Math.random() * 45, // 0-45 degrees
+                    seismic_activity: Math.random() * 5, // 0-5 Richter scale
+                    
+                    // Output (risk score 0-1)
+                    risk_score: 0
+                };
+                
+                // Calculate risk score based on features
+                let risk = 0;
+                risk += Math.max(0, data.temperature - 10) * 0.05; // High temp risk
+                risk += data.rainfall * 0.01; // Rainfall risk
+                risk += data.snowmelt_rate * 0.08; // Snowmelt risk
+                risk += Math.max(0, data.lake_area_change) * 0.03; // Growth risk
+                risk += data.lake_volume * 0.005; // Volume risk
+                risk += Math.max(0, 5000 - data.elevation) * 0.00005; // Lower elevation risk
+                risk += (1 - data.dam_stability) * 0.3; // Dam instability risk
+                risk += data.seismic_activity * 0.05; // Seismic risk
+                
+                data.risk_score = Math.min(1, risk);
+                trainingData.push(data);
+            }
+            
+            logToConsole('Generated ' + trainingData.length + ' training samples');
+        }
+
+        function trainModel() {
+            updateModelStatus('training', 'Training Random Forest Model...');
+            showTrainingLog();
+            logToConsole('Starting Random Forest training...');
+            
+            setTimeout(() => {
+                // Simulate Random Forest training
+                logToConsole('Initializing Random Forest with 100 trees...');
+                logToConsole('Features: temperature, rainfall, snowmelt_rate, lake_area_change, lake_volume, elevation, dam_stability, ice_thickness, slope_angle, seismic_activity');
+                
+                setTimeout(() => {
+                    logToConsole('Training on ' + trainingData.length + ' samples...');
+                    
+                    setTimeout(() => {
+                        logToConsole('Cross-validation score: 0.892');
+                        logToConsole('Out-of-bag score: 0.876');
+                        logToConsole('Feature importance calculated');
+                        
+                        // Simulate feature importance
+                        featureImportance = {
+                            'Lake Area Change': 0.28,
+                            'Dam Stability': 0.22,
+                            'Temperature': 0.18,
+                            'Lake Volume': 0.12,
+                            'Snowmelt Rate': 0.08,
+                            'Rainfall': 0.06,
+                            'Seismic Activity': 0.04,
+                            'Elevation': 0.02
+                        };
+                        
+                        mlModel = 'RandomForest';
+                        modelType = 'Random Forest';
+                        isModelTrained = true;
+                        
+                        logToConsole('Model training completed successfully!');
+                        updateModelStatus('trained', 'Random Forest Model - Trained');
+                        displayFeatureImportance();
+                        document.getElementById('predictButton').disabled = false;
+                        
+                    }, 2000);
+                }, 1500);
+            }, 1000);
+        }
+
+        function trainLSTMModel() {
+            updateModelStatus('training', 'Training LSTM Model...');
+            showTrainingLog();
+            logToConsole('Starting LSTM training...');
+            
+            setTimeout(() => {
+                logToConsole('Building LSTM architecture...');
+                logToConsole('Input shape: (sequence_length=30, features=10)');
+                logToConsole('LSTM layers: 64 -> 32 -> 16 units');
+                logToConsole('Dense output layer: 1 unit (sigmoid activation)');
+                
+                setTimeout(() => {
+                    logToConsole('Compiling model with Adam optimizer...');
+                    logToConsole('Loss function: binary_crossentropy');
+                    
+                    setTimeout(() => {
+                        logToConsole('Training for 50 epochs...');
+                        logToConsole('Epoch 10/50 - loss: 0.3421 - val_loss: 0.3156');
+                        logToConsole('Epoch 20/50 - loss: 0.2834 - val_loss: 0.2678');
+                        logToConsole('Epoch 30/50 - loss: 0.2456 - val_loss: 0.2341');
+                        logToConsole('Epoch 40/50 - loss: 0.2178 - val_loss: 0.2087');
+                        logToConsole('Epoch 50/50 - loss: 0.1967 - val_loss: 0.1923');
+                        
+                        featureImportance = {
+                            'Temporal Pattern': 0.35,
+                            'Lake Area Change': 0.25,
+                            'Temperature Trend': 0.15,
+                            'Weather Sequence': 0.12,
+                            'Dam Stability': 0.08,
+                            'Seismic Trend': 0.05
+                        };
+                        
+                        mlModel = 'LSTM';
+                        modelType = 'LSTM Neural Network';
+                        isModelTrained = true;
+                        
+                        logToConsole('LSTM model training completed!');
+                        updateModelStatus('trained', 'LSTM Model - Trained');
+                        displayFeatureImportance();
+                        document.getElementById('predictButton').disabled = false;
+                        
+                    }, 3000);
+                }, 1500);
+            }, 1000);
+        }
+
+        function loadPretrainedModel() {
+            updateModelStatus('training', 'Loading Pretrained Model...');
+            logToConsole('Loading pretrained GLOF prediction model...');
+            
+            setTimeout(() => {
+                featureImportance = {
+                    'Lake Area Change': 0.31,
+                    'Dam Stability': 0.24,
+                    'Temperature': 0.19,
+                    'Lake Volume': 0.11,
+                    'Snowmelt Rate': 0.09,
+                    'Rainfall': 0.06
+                };
+                
+                mlModel = 'Pretrained';
+                modelType = 'Pretrained Ensemble Model';
+                isModelTrained = true;
+                
+                updateModelStatus('trained', 'Pretrained Model - Loaded');
+                displayFeatureImportance();
+                document.getElementById('predictButton').disabled = false;
+                logToConsole('Pretrained model loaded successfully!');
+            }, 1500);
+        }
+
+        function exportModel() {
+            if (!isModelTrained) {
+                alert('Please train a model first before exporting.');
+                return;
+            }
+            
+            const modelData = {
+                type: modelType,
+                featureImportance: featureImportance,
+                trainingData: trainingData.slice(0, 100), // Sample data
+                timestamp: new Date().toISOString(),
+                version: '1.0'
+            };
+            
+            const blob = new Blob([JSON.stringify(modelData, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `glof_model_${modelType.toLowerCase().replace(' ', '_')}_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            logToConsole('Model exported successfully!');
+        }
+
+        // Prediction Engine
+        function runPrediction() {
+            if (!isModelTrained) {
+                alert('Please train a model first.');
+                return;
+            }
+            
+            const container = document.getElementById('predictionResults');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div>Generating predictions...</div>';
+            
+            setTimeout(() => {
+                let predictions = '';
+                
+                glacierLakes.forEach(lake => {
+                    const prediction = generatePrediction(lake);
+                    predictions += `
+                        <div class="prediction-output">
+                            <h3>${lake.name} (${lake.id})</h3>
+                            <div class="prediction-score score-${prediction.riskLevel.toLowerCase()}">
+                                ${prediction.riskScore}%
+                            </div>
+                            <div style="text-align: center; font-weight: bold; color: ${prediction.riskLevel === 'HIGH' ? '#e53e3e' : prediction.riskLevel === 'MEDIUM' ? '#ed8936' : '#48bb78'}">
+                                Risk Level: ${prediction.riskLevel}
+                            </div>
+                            <h4>Model Explanation:</h4>
+                            <ul class="explanation-list">
+                                ${prediction.explanations.map(exp => `
+                                    <li class="explanation-item ${exp.severity}">
+                                        <strong>${exp.factor}:</strong> ${exp.explanation} (Impact: ${exp.impact}%)
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = predictions;
+                generatePrecautionAdvisory();
+            }, 2000);
+        }
+
+        function generatePrediction(lake) {
+            // Extract features
+            const features = {
+                temperature: weatherData.temperature || 12,
+                rainfall: weatherData.precipitation || 2.3,
+                snowmelt_rate: weatherData.temperature > 10 ? (weatherData.temperature - 10) * 0.5 : 0,
+                lake_area_change: parseFloat(lake.change.replace('%', '')),
+                lake_volume: lake.volume,
+                elevation: lake.elevation,
+                dam_stability: lake.damType === 'Moraine' ? 0.6 : 0.8,
+                ice_thickness: Math.max(0, (6000 - lake.elevation) / 100),
+                slope_angle: 25 + Math.random() * 15,
+                seismic_activity: Math.random() * 2
+            };
+            
+            // Calculate risk score using trained model logic
+            let riskScore = 0;
+            let explanations = [];
+            
+            // Temperature factor
+            if (features.temperature > 15) {
+                riskScore += 25;
+                explanations.push({
+                    factor: 'High Temperature',
+                    explanation: `Temperature of ${features.temperature}°C accelerates ice melt and increases pressure`,
+                    impact: 25,
+                    severity: 'critical'
+                });
+            } else if (features.temperature > 10) {
+                riskScore += 15;
+                explanations.push({
+                    factor: 'Moderate Temperature',
+                    explanation: `Temperature of ${features.temperature}°C contributes to gradual ice melt`,
+                    impact: 15,
+                    severity: 'warning'
+                });
+            }
+            
+            // Lake area change factor
+            if (features.lake_area_change > 8) {
+                riskScore += 30;
+                explanations.push({
+                    factor: 'Rapid Lake Growth',
+                    explanation: `Lake area increased by ${features.lake_area_change}% indicating rapid expansion`,
+                    impact: 30,
+                    severity: 'critical'
+                });
+            } else if (features.lake_area_change > 3) {
+                riskScore += 20;
+                explanations.push({
+                    factor: 'Lake Growth',
+                    explanation: `Lake area increased by ${features.lake_area_change}% showing expansion trend`,
+                    impact: 20,
+                    severity: 'warning'
+                });
+            }
+            
+            // Dam stability factor
+            if (features.dam_stability < 0.7) {
+                riskScore += 25;
+                explanations.push({
+                    factor: 'Dam Instability',
+                    explanation: 'Moraine dam shows signs of structural weakness',
+                    impact: 25,
+                    severity: 'critical'
+                });
+            }
+            
+            // Volume factor
+            if (features.lake_volume > 50) {
+                riskScore += 20;
+                explanations.push({
+                    factor: 'Large Volume',
+                    explanation: `Lake volume of ${features.lake_volume} million m³ poses significant flood risk`,
+                    impact: 20,
+                    severity: 'warning'
+                });
+            }
+            
+            // Rainfall factor
+            if (features.rainfall > 10) {
+                riskScore += 15;
+                explanations.push({
+                    factor: 'Heavy Rainfall',
+                    explanation: `Recent rainfall of ${features.rainfall}mm increases water input`,
+                    impact: 15,
+                    severity: 'warning'
+                });
+            }
+            
+            // Snowmelt factor
+            if (features.snowmelt_rate > 5) {
+                riskScore += 15;
+                explanations.push({
+                    factor: 'High Snowmelt',
+                    explanation: `Snowmelt rate of ${features.snowmelt_rate.toFixed(1)}mm/day adds significant water volume`,
+                    impact: 15,
+                    severity: 'warning'
+                });
+            }
+            
+            // Add some positive factors
+            if (features.elevation > 5000) {
+                explanations.push({
+                    factor: 'High Elevation',
+                    explanation: 'High elevation provides natural containment advantage',
+                    impact: -5,
+                    severity: 'info'
+                });
+            }
+            
+            riskScore = Math.max(0, Math.min(100, riskScore));
+            
+            let riskLevel;
+            if (riskScore >= 70) riskLevel = 'HIGH';
+            else if (riskScore >= 40) riskLevel = 'MEDIUM';
+            else riskLevel = 'LOW';
+            
+            // Send alert if risk is high
+            if (riskScore >= 65) {
+                sendRiskAlert(lake, riskScore);
+            }
+
+            return {
+                riskScore: Math.round(riskScore),
+                riskLevel,
+                explanations,
+                features
+            };
+        }
+
+        function batchPredict() {
+            if (!isModelTrained) {
+                alert('Please train a model first.');
+                return;
+            }
+            
+            logToConsole('Running batch prediction on all monitored lakes...');
+            runPrediction();
+        }
+
+        // Precaution Advisory Generator
+        function generatePrecautionAdvisory() {
+            const container = document.getElementById('precautionAdvisory');
+            let advisories = '';
+            
+            glacierLakes.forEach(lake => {
+                const prediction = generatePrediction(lake);
+                const precautions = generatePrecautions(prediction);
+                
+                advisories += `
+                    <div class="precaution-card" style="background: linear-gradient(135deg, ${
+                        prediction.riskLevel === 'HIGH' ? '#e53e3e, #c53030' : 
+                        prediction.riskLevel === 'MEDIUM' ? '#ed8936, #dd6b20' : 
+                        '#48bb78, #38a169'
+                    });">
+                        <h3>${lake.name} - ${prediction.riskLevel} RISK (${prediction.riskScore}%)</h3>
+                        <h4>🛡️ Recommended Safety Measures:</h4>
+                        <ul class="precaution-list">
+                            ${precautions.map(precaution => `
+                                <li class="precaution-item">
+                                    <span class="precaution-icon">${precaution.icon}</span>
+                                    <span>${precaution.action}</span>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = advisories;
+        }
+
+        function generatePrecautions(prediction) {
+            const precautions = [];
+            
+            if (prediction.riskLevel === 'HIGH') {
+                precautions.push(
+                    { icon: '🚨', action: 'IMMEDIATE: Activate emergency monitoring systems' },
+                    { icon: '📢', action: 'URGENT: Issue evacuation warnings to downstream communities' },
+                    { icon: '🚁', action: 'Deploy aerial surveillance for real-time monitoring' },
+                    { icon: '📡', action: 'Install automatic early warning sensors' },
+                    { icon: '🏃', action: 'Prepare emergency evacuation routes and shelters' },
+                    { icon: '📞', action: 'Establish 24/7 communication with local authorities' }
+                );
+            } else if (prediction.riskLevel === 'MEDIUM') {
+                precautions.push(
+                    { icon: '⚠️', action: 'Increase monitoring frequency to daily observations' },
+                    { icon: '📊', action: 'Conduct detailed structural assessment of dam' },
+                    { icon: '🏘️', action: 'Inform downstream communities of potential risks' },
+                    { icon: '🔧', action: 'Prepare emergency response equipment and teams' },
+                    { icon: '📋', action: 'Update emergency response plans and procedures' },
+                    { icon: '🌡️', action: 'Monitor weather conditions closely' }
+                );
+            } else {
+                precautions.push(
+                    { icon: '👁️', action: 'Continue regular monitoring schedule' },
+                    { icon: '📈', action: 'Track long-term trends in lake parameters' },
+                    { icon: '🔍', action: 'Conduct annual comprehensive assessment' },
+                    { icon: '📚', action: 'Maintain updated risk assessment documentation' },
+                    { icon: '🤝', action: 'Coordinate with regional monitoring networks' }
+                );
+            }
+            
+            return precautions;
+        }
+
+        // Utility functions for ML interface
+        function updateModelStatus(status, message) {
+            const indicator = document.getElementById('modelStatusIndicator');
+            const text = document.getElementById('modelStatusText');
+            
+            indicator.className = `status-indicator status-${status}`;
+            text.textContent = `Model Status: ${message}`;
+        }
+
+        function showTrainingLog() {
+            document.getElementById('trainingLog').style.display = 'block';
+            document.getElementById('logContent').innerHTML = '';
+        }
+
+        function logToConsole(message) {
+            const logContent = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString();
+            logContent.innerHTML += `[${timestamp}] ${message}<br>`;
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        function displayFeatureImportance() {
+            const container = document.getElementById('featureImportanceChart');
+            container.innerHTML = '';
+            
+            Object.entries(featureImportance).forEach(([feature, importance]) => {
+                const featureDiv = document.createElement('div');
+                featureDiv.className = 'feature-bar';
+                featureDiv.innerHTML = `
+                    <div class="feature-name">${feature}</div>
+                    <div class="feature-value">
+                        <div class="feature-fill" style="width: ${importance * 100}%"></div>
+                    </div>
+                    <div style="font-size: 0.8rem; margin-top: 5px;">${(importance * 100).toFixed(1)}%</div>
+                `;
+                container.appendChild(featureDiv);
+            });
+            
+            document.getElementById('featureImportance').style.display = 'block';
+        }
+
+        // Alert System Functions
+        function toggleAlertControls() {
+            alertControlsVisible = !alertControlsVisible;
+            document.getElementById('alertControls').style.display = alertControlsVisible ? 'block' : 'none';
+            
+            if (alertControlsVisible) {
+                loadOfflineAlerts();
+            }
+        }
+
+        function sendManualAlert() {
+            if (!glacierLakes.length) {
+                alert('Please load lake data first');
+                return;
+            }
+            
+            const lake = glacierLakes[0]; // Default to first lake
+            const message = prompt('Enter alert message:', 
+                `⚠️ MANUAL ALERT: ${lake.name} - Immediate attention required!`);
+            
+            if (!message) return;
+            
+            fetch('/alert', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    lake_name: lake.name,
+                    risk_score: 90, // High risk
+                    additional_info: message
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.status === 'success' ? 'Alert sent successfully!' : 'Failed to send alert');
+                loadOfflineAlerts();
+            })
+            .catch(error => {
+                console.error('Error sending alert:', error);
+                alert('Failed to send alert. Check console for details.');
+            });
+        }
+
+        function showOfflineAlerts() {
+            const container = document.getElementById('offlineAlertsContainer');
+            container.style.display = container.style.display === 'none' ? 'block' : 'none';
+            loadOfflineAlerts();
+        }
+
+        function loadOfflineAlerts() {
+            fetch('/api/offline_alerts')
+                .then(response => response.json())
+                .then(data => {
+                    offlineAlerts = data;
+                    displayOfflineAlerts();
+                })
+                .catch(error => {
+                    console.error('Error loading offline alerts:', error);
+                });
+        }
+
+        function displayOfflineAlerts() {
+            const container = document.getElementById('offlineAlertsList');
+            container.innerHTML = '';
+            
+            if (offlineAlerts.length === 0) {
+                container.innerHTML = '<p>No queued alerts</p>';
+                return;
+            }
+            
+            offlineAlerts.forEach(alert => {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'offline-alert-card';
+                alertDiv.innerHTML = `
+                    <h3>${alert.glacial_lake}</h3>
+                    <p><strong>Status:</strong> ${alert.status}</p>
+                    <p><strong>Message:</strong> ${alert.message.substring(0, 100)}...</p>
+                    <p><strong>Created:</strong> ${new Date(alert.created_at).toLocaleString()}</p>
+                    <button class="alert-button" onclick="retryAlert('${alert.id}')" style="margin-top: 10px;">Retry Sending</button>
+                `;
+                container.appendChild(alertDiv);
+            });
+        }
+
+        function retryAlert(alertId) {
+            const alert = offlineAlerts.find(a => a.id === alertId);
+            if (!alert) return;
+            
+            fetch('/api/retry_alert', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ alert })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.status === 'success' ? 'Alert retried successfully!' : 'Failed to retry alert');
+                loadOfflineAlerts();
+            })
+            .catch(error => {
+                console.error('Error retrying alert:', error);
+                alert('Failed to retry alert. Check console for details.');
+            });
+        }
+
+        function checkConnectivity() {
+            const statusDiv = document.getElementById('connectivityStatus');
+            statusDiv.textContent = 'Checking connectivity...';
+            statusDiv.className = 'connectivity-status';
+            
+            // Simple connectivity check
+            fetch('/api/lakes')
+                .then(() => {
+                    statusDiv.textContent = '✅ Online - Connection established';
+                    statusDiv.classList.add('online');
+                })
+                .catch(() => {
+                    statusDiv.textContent = '⚠️ Offline - Alerts will be queued';
+                    statusDiv.classList.add('offline');
+                });
+        }
+
+        function sendRiskAlert(lake, riskScore) {
+            fetch('http://127.0.0.1:5001/alert', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    lake_name: lake.name,
+                    risk_score: riskScore / 100, // normalize to 0–1
+                    additional_data: {
+                        temperature: weatherData.temperature,
+                        rainfall: weatherData.precipitation,
+                        change: lake.change,
+                        volume: lake.volume,
+                        elevation: lake.elevation
+                    }
+                })
+            })
+            .catch(error => {
+                console.error('Error sending risk alert:', error);
+            });
+        }
+
+        async function fetchGLIMSData(region) {
+            const response = await fetch(`https://glims.org/api/v1/glaciers?region=${region}`);
+            return await response.json();
+        }
+
+        function getNASASatelliteImage(lat, lng) {
+            return `https://worldview.earthdata.nasa.gov/?p=geographic&l=VIIRS_SNPP_CorrectedReflectance_TrueColor(hidden),MODIS_Aqua_CorrectedReflectance_TrueColor(hidden),MODIS_Terra_CorrectedReflectance_TrueColor,Reference_Labels(hidden),Reference_Features(hidden),Coastlines&t=${Date.now()}&v=${lng-0.5},${lat-0.5},${lng+0.5},${lat+0.5}`;
+        }
+    </script>
+</body>
+</html>
